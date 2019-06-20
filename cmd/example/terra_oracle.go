@@ -7,7 +7,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/tendermint/tendermint/rpc/client"
 
-	oracle "github.com/certusone/terra-oracle"
+	"github.com/certusone/terra-oracle/internal/oracle"
+	"github.com/certusone/terra-oracle/internal/signer"
 )
 
 // examplePriceProvider implements the PriceProvider interface
@@ -40,8 +41,8 @@ func main() {
 		panic(err)
 	}
 
-	mneumonic := os.Getenv("MNEUMONIC")
-	signer, err := oracle.NewHdSignerFromMneumonic(mneumonic)
+	mnemonic := os.Getenv("MNEMONIC")
+	hdSigner, err := signer.NewHdSignerFromMnemonic(mnemonic)
 	if err != nil {
 		panic(err)
 	}
@@ -61,11 +62,12 @@ func main() {
 		ValAddress:    valAddress,
 		ChainID:       chainID,
 		PriceProvider: priceProvider,
-		Signer:        signer,
+		Signer:        hdSigner,
 		TxFee:         txFee,
 	})
 
-	log.Printf("Starting voter for:\n\tValidator: %s\n\tFeeder: %s\n\tChain: %s\n", valAddress.String(), signer.Address().String(), chainID)
+	log.Printf("starting voter for:\n\tValidator: %s\n\tFeeder: %s\n\tChain: %s\n", valAddress.String(), hdSigner.Address().String(), chainID)
 
-	oracle.ProcessingLoop()
+	// TODO(hendrik): Allow graceful stop with os.Signal
+	log.Fatal(oracle.ProcessingLoop())
 }

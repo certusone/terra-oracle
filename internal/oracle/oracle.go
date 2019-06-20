@@ -6,42 +6,42 @@ import (
 	"log"
 	"time"
 
-	cosmos_types "github.com/cosmos/cosmos-sdk/types"
+	"github.com/certusone/terra-oracle/internal/signer"
+	ctypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth"
-	context3 "github.com/cosmos/cosmos-sdk/x/auth/client/txbuilder"
+	tcontext "github.com/cosmos/cosmos-sdk/x/auth/client/txbuilder"
 	"github.com/google/uuid"
 	"github.com/tendermint/go-amino"
 	"github.com/tendermint/tendermint/rpc/client"
 	"github.com/tendermint/tendermint/types"
 	"github.com/terra-project/core/app"
 	"github.com/terra-project/core/x/oracle"
-	"github.com/terra-project/core/x/oracle/client/cli"
 )
 
 type PriceOracleConfig struct {
 	Client        *client.HTTP
-	ValAddress    cosmos_types.ValAddress
+	ValAddress    ctypes.ValAddress
 	ChainID       string
-	TxFee         cosmos_types.Coin
+	TxFee         ctypes.Coin
 	PriceProvider PriceProvider
-	Signer        Signer
+	Signer        signer.Signer
 }
 
 type PriceOracle struct {
 	cdc        *amino.Codec
 	client     *client.HTTP
-	valAddress cosmos_types.ValAddress
+	valAddress ctypes.ValAddress
 	chainID    string
-	txFee      cosmos_types.Coin
+	txFee      ctypes.Coin
 
 	prevotes       []Vote
 	prevotesPeriod int64
 
 	priceProvider PriceProvider
-	signer        Signer
+	signer        signer.Signer
 }
 
-func NewPriceOracle(config PriceOracleConfig) *PriceOracle { // wsClient *client.HTTP, valAddress cosmos_types.ValAddress, chainID string, priceProvider PriceProvider, signer Signer, txFee cosmos_types.Coin) *PriceOracle {
+func NewPriceOracle(config PriceOracleConfig) *PriceOracle { // wsClient *client.HTTP, valAddress ctypes.ValAddress, chainID string, priceProvider PriceProvider, signer Signer, txFee ctypes.Coin) *PriceOracle {
 	oracle := &PriceOracle{
 		cdc:            app.MakeCodec(),
 		client:         config.Client,
@@ -73,7 +73,7 @@ func (priceOracle *PriceOracle) ProcessingLoop() error {
 
 	for event := range blocks {
 		blockData := event.Data.(types.EventDataNewBlock)
-		log.Printf("New block %d", blockData.Block.Height)
+		log.Printf("new block %d", blockData.Block.Height)
 
 		blockHeight := blockData.Block.Height
 		voteCycle := blockHeight / params.VotePeriod
@@ -86,10 +86,10 @@ func (priceOracle *PriceOracle) ProcessingLoop() error {
 			revealMsgs := priceOracle.RevealVotes()
 
 			if len(revealMsgs) > 0 {
-				log.Printf("Revealing votes for period: %d\n", priceOracle.prevotesPeriod)
+				log.Printf("revealing votes for period: %d\n", priceOracle.prevotesPeriod)
 				err := priceOracle.SendMessages(0, revealMsgs)
 				if err != nil {
-					log.Printf("Error sending tx: %v", err)
+					log.Printf("error sending tx: %v", err)
 				} else {
 					priceOracle.prevotes = []Vote{}
 					offset = 1
@@ -117,10 +117,10 @@ func (priceOracle *PriceOracle) ProcessingLoop() error {
 		// generate prevotes
 		votes, prevoteMsgs := priceOracle.SubmitVotes()
 		if len(prevoteMsgs) > 0 {
-			log.Printf("Prevote for period: %d\n", voteCycle)
+			log.Printf("prevote for period: %d\n", voteCycle)
 			err := priceOracle.SendMessages(offset, prevoteMsgs)
 			if err != nil {
-				log.Printf("Error sending tx: %v", err)
+				log.Printf("error sending tx: %v", err)
 			} else {
 				priceOracle.prevotes = votes
 				priceOracle.prevotesPeriod = voteCycle
@@ -131,8 +131,8 @@ func (priceOracle *PriceOracle) ProcessingLoop() error {
 	return nil
 }
 
-func (priceOracle *PriceOracle) RevealVotes() []cosmos_types.Msg {
-	var msgs []cosmos_types.Msg
+func (priceOracle *PriceOracle) RevealVotes() []ctypes.Msg {
+	var msgs []ctypes.Msg
 
 	for _, vote := range priceOracle.prevotes {
 		msg := oracle.NewMsgPriceVote(vote.Price, vote.Salt, vote.Denom, vote.Feeder, priceOracle.valAddress)
@@ -142,14 +142,14 @@ func (priceOracle *PriceOracle) RevealVotes() []cosmos_types.Msg {
 	return msgs
 }
 
-func (priceOracle *PriceOracle) SubmitVotes() ([]Vote, []cosmos_types.Msg) {
+func (priceOracle *PriceOracle) SubmitVotes() ([]Vote, []ctypes.Msg) {
 	actives, err := priceOracle.QueryActives()
 	if err != nil {
 		panic(err)
 	}
 
 	var (
-		msgs  []cosmos_types.Msg
+		msgs  []ctypes.Msg
 		votes []Vote
 	)
 	for _, denom := range actives {
@@ -158,7 +158,7 @@ func (priceOracle *PriceOracle) SubmitVotes() ([]Vote, []cosmos_types.Msg) {
 
 		price, err := priceOracle.priceProvider.GetPrice(truncatedDenom)
 		if err != nil {
-			log.Printf("Could not get %s price; err=%v", denom, err)
+			log.Printf("could not get %s price; err=%v", denom, err)
 			continue
 		}
 
@@ -170,7 +170,7 @@ func (priceOracle *PriceOracle) SubmitVotes() ([]Vote, []cosmos_types.Msg) {
 			Validator: priceOracle.valAddress,
 		}
 
-		log.Printf("Voting for %s with price %s", denom, price.String())
+		log.Printf("voting for %s with price %s", denom, price.String())
 
 		msg := oracle.NewMsgPricePrevote(vote.Hash(), vote.Denom, vote.Feeder, vote.Validator)
 		msgs = append(msgs, msg)
@@ -180,7 +180,7 @@ func (priceOracle *PriceOracle) SubmitVotes() ([]Vote, []cosmos_types.Msg) {
 	return votes, msgs
 }
 
-func (priceOracle *PriceOracle) SendMessages(sequenceOffset uint64, msgs []cosmos_types.Msg) error {
+func (priceOracle *PriceOracle) SendMessages(sequenceOffset uint64, msgs []ctypes.Msg) error {
 	tx := auth.StdTx{}
 	tx.Msgs = msgs
 
@@ -189,10 +189,10 @@ func (priceOracle *PriceOracle) SendMessages(sequenceOffset uint64, msgs []cosmo
 		return err
 	}
 
-	fee := auth.NewStdFee(50000, cosmos_types.Coins{priceOracle.txFee})
+	fee := auth.NewStdFee(50000, ctypes.Coins{priceOracle.txFee})
 	tx.Fee = fee
 
-	signMsg := context3.StdSignMsg{
+	signMsg := tcontext.StdSignMsg{
 		ChainID:       priceOracle.chainID,
 		AccountNumber: acc.GetAccountNumber(),
 		Sequence:      acc.GetSequence() + sequenceOffset,
@@ -225,60 +225,10 @@ func (priceOracle *PriceOracle) SendMessages(sequenceOffset uint64, msgs []cosmo
 	}
 
 	if res.Code != 0 {
-		return fmt.Errorf("Error sending tx: %v", res)
+		return fmt.Errorf("error sending tx: %v", res)
 	}
 
-	log.Printf("Submitted tx: %v\n", res)
+	log.Printf("submitted tx: %v\n", res)
 
 	return nil
-}
-
-func (priceOracle *PriceOracle) QueryAccount(addr cosmos_types.AccAddress) (auth.Account, error) {
-	bz, err := priceOracle.cdc.MarshalJSON(auth.NewQueryAccountParams(addr))
-	if err != nil {
-		return nil, err
-	}
-
-	res, err := priceOracle.client.ABCIQuery(fmt.Sprintf("custom/%s/%s", auth.StoreKey, auth.QueryAccount), bz)
-	if err != nil {
-		return nil, err
-	}
-
-	var account auth.Account
-	err = priceOracle.cdc.UnmarshalJSON(res.Response.Value, &account)
-	if err != nil {
-		return nil, err
-	}
-
-	return account, nil
-}
-
-func (priceOracle *PriceOracle) QueryActives() (cli.DenomList, error) {
-	res, err := priceOracle.client.ABCIQuery(fmt.Sprintf("custom/%s/%s", "oracle", oracle.QueryActive), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var actives cli.DenomList
-	err = priceOracle.cdc.UnmarshalJSON(res.Response.Value, &actives)
-	if err != nil {
-		return nil, err
-	}
-
-	return actives, nil
-}
-
-func (priceOracle *PriceOracle) QueryOracleParams() (*oracle.Params, error) {
-	res, err := priceOracle.client.ABCIQuery(fmt.Sprintf("custom/%s/%s", "oracle", oracle.QueryParams), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var params oracle.Params
-	err = priceOracle.cdc.UnmarshalJSON(res.Response.Value, &params)
-	if err != nil {
-		return nil, err
-	}
-
-	return &params, nil
 }

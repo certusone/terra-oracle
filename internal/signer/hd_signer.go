@@ -1,20 +1,20 @@
-package oracle
+package signer
 
 import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/hd"
-	cosmos_types "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/go-bip39"
+	ctypes "github.com/cosmos/cosmos-sdk/types"
+	bip39 "github.com/cosmos/go-bip39"
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/secp256k1"
 )
 
 type HdSigner struct {
 	privKey secp256k1.PrivKeySecp256k1
-	address cosmos_types.AccAddress
+	address ctypes.AccAddress
 }
 
-func NewHdSignerFromMneumonic(mneumonic string) (*HdSigner, error) {
-	seed, err := bip39.NewSeedWithErrorChecking(mneumonic, "")
+func NewHdSignerFromMnemonic(mnemonic string) (*HdSigner, error) {
+	seed, err := bip39.NewSeedWithErrorChecking(mnemonic, "")
 	if err != nil {
 		return nil, err
 	}
@@ -25,11 +25,11 @@ func NewHdSignerFromMneumonic(mneumonic string) (*HdSigner, error) {
 
 	return &HdSigner{
 		privKey: privKey,
-		address: cosmos_types.AccAddress(privKey.PubKey().Address()),
+		address: ctypes.AccAddress(privKey.PubKey().Address()),
 	}, nil
 }
 
-func (signer *HdSigner) Address() cosmos_types.AccAddress {
+func (signer *HdSigner) Address() ctypes.AccAddress {
 	return signer.address
 }
 
