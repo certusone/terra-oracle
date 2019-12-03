@@ -7,8 +7,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/tendermint/tendermint/rpc/client"
 
-	"github.com/certusone/terra-oracle/internal/oracle"
-	"github.com/certusone/terra-oracle/internal/signer"
+	"github.com/certusone/terra-oracle/pkg/oracle"
+	"github.com/certusone/terra-oracle/pkg/signer"
 )
 
 // examplePriceProvider implements the PriceProvider interface

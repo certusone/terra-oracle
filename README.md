@@ -4,7 +4,7 @@ A library for implementing a price oracle on the Terra network.
 
 ## Example
 
-See `cmd/example` directory for an example oracle program.
+See `example` directory for an example oracle program.
 
 ## Sponsors
 

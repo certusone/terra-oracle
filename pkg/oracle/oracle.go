@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/certusone/terra-oracle/internal/signer"
+	"github.com/certusone/terra-oracle/pkg/signer"
 	ctypes "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	tcontext "github.com/cosmos/cosmos-sdk/x/auth/client/txbuilder"
